@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        description: The Java version to set up. See https://github.com/actions/setup-java/blob/v4/action.yml#L6
+        default: '21'
+      runs-on:
+        type: string
+        description: the image on which to run the job
+        default: ubuntu-latest
+    secrets:
+      GH_TOKEN_REPO:
+        description: Token to access private repositories of the lernejo org
+        required: true
+      CODECOV_TOKEN:
+        description: Repository Codecov token. See https://github.com/codecov/codecov-action/blob/v4/action.yml#L5
+        required: true
+      KOREKTO_VAULT_KEY:
+        description: AES B64 key to decode Korekto-Vault files
+        required: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+          cache: maven
+
+      - name: Debug JDK info
+        shell: bash
+        run: |
+          java -Xmx4M -XX:+PrintCommandLineFlags -version
+          ./mvnw -version
+          echo $JAVA_HOME
+
+      - name: Run tests
+        shell: bash
+        run: ./mvnw -U test -Dgithub_token="$GH_TOKEN_REPO" -DfailIfNoTests -Dkorekto_vault_key="$KOREKTO_VAULT_KEY"
+        env:
+          GH_TOKEN_REPO: ${{ secrets.GH_TOKEN_REPO }}
+          KOREKTO_VAULT_KEY: ${{ secrets.KOREKTO_VAULT_KEY }}
+
+      - uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
