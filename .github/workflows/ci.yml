@@ -63,7 +63,7 @@ jobs:
           files: |
             target/surefire-reports/*.xml
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ env.CODECOV_TOKEN != '' }}
