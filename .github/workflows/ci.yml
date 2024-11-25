@@ -11,6 +11,10 @@ on:
         type: string
         description: the image on which to run the job
         default: ubuntu-latest
+      enable-docker-for-windows:
+        type: boolean
+        description: Install & start Docker on a Windows runner
+        default: false
     secrets:
       GH_TOKEN_REPO:
         description: Token to access private repositories of the lernejo org
@@ -42,9 +46,26 @@ jobs:
           ./mvnw -version
           echo $JAVA_HOME
 
-      - name: Run tests
+      - name: Install & start Docker for Windows
+        if: ${{ contains(inputs.runs-on, 'windows') && inputs.enable-docker-for-windows }}
+        uses: crazy-max/ghaction-setup-docker@a37e5b7d617b6fa0ee22a6adad6077dbed458a49 # latest master 25/11/2024
+        with:
+          rootless: true
+          set-host: true
+          context: docker_engine
+
+      - name: Run tests (linux)
         shell: bash
+        if: ${{ contains(inputs.runs-on, 'ubuntu') }}
         run: ./mvnw -U test -Dgithub_token="$GH_TOKEN_REPO" -DfailIfNoTests -Dkorekto_vault_key="$KOREKTO_VAULT_KEY"
+        env:
+          GH_TOKEN_REPO: ${{ secrets.GH_TOKEN_REPO }}
+          KOREKTO_VAULT_KEY: ${{ secrets.KOREKTO_VAULT_KEY }}
+
+      - name: Run tests (windows)
+        shell: pwsh
+        if: ${{ contains(inputs.runs-on, 'windows') }}
+        run: .\mvnw.cmd -U test -Dgithub_token="$env:GH_TOKEN_REPO" -DfailIfNoTests -Dkorekto_vault_key="$env:KOREKTO_VAULT_KEY"
         env:
           GH_TOKEN_REPO: ${{ secrets.GH_TOKEN_REPO }}
           KOREKTO_VAULT_KEY: ${{ secrets.KOREKTO_VAULT_KEY }}
